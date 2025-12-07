@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel IoT – Riego y Ventilación</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: Arial; background:#f4f4f4; margin:0; padding:20px; }
+.card { background:white; padding:20px; border-radius:10px; margin-bottom:20px; box-shadow:0 0 10px #ccc; }
+button { padding:10px 20px; margin:5px; font-size:16px; border:none; border-radius:6px; cursor:pointer; }
+.on{background:#28a745;color:white;} .off{background:#dc3545;color:white;}
+h2 { margin-top:0; }
+</style>
+</head>
+<body>
+
+<h1>Panel IoT – Riego & Ventilación</h1>
+
+<div class="card">
+  <h2>Control Manual</h2>
+  <div>
+    <h3>Riego</h3>
+    <button class="on" onclick="sendCmd('riego_on')">Encender</button>
+    <button class="off" onclick="sendCmd('riego_off')">Apagar</button>
+  </div>
+  <div>
+    <h3>Ventilación</h3>
+    <button class="on" onclick="sendCmd('vent_on')">Encender</button>
+    <button class="off" onclick="sendCmd('vent_off')">Apagar</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Sensores</h2>
+  <p><b>Humedad:</b> <span id="humedad">--</span></p>
+  <p><b>Aire MQ135:</b> <span id="aire">--</span></p>
+</div>
+
+<div class="card">
+  <h2>Gráfica Humedad</h2>
+  <canvas id="chartH"></canvas>
+</div>
+
+<div class="card">
+  <h2>Gráfica Aire MQ135</h2>
+  <canvas id="chartMQ"></canvas>
+</div>
+
+<script>
+let humChart, mqChart;
+let humData = [];
+let mqData = [];
+let labels = [];
+
+function initCharts(){
+  humChart = new Chart(document.getElementById('chartH'), {
+    type:'line',
+    data:{ labels: labels, datasets:[{label:'Humedad',data:humData}] },
+    options:{responsive:true}
+  });
+  mqChart = new Chart(document.getElementById('chartMQ'), {
+    type:'line',
+    data:{ labels: labels, datasets:[{label:'MQ135',data:mqData}] },
+    options:{responsive:true}
+  });
+}
+
+async function loadData(){
+  try{
+    let r = await fetch('/data');
+    let j = await r.json();
+
+    document.getElementById('humedad').textContent = j.humedad;
+    document.getElementById('aire').textContent = j.mq;
+
+    labels.push('');
+    humData.push(j.humedad);
+    mqData.push(j.mq);
+
+    if(labels.length > 30){
+      labels.shift(); humData.shift(); mqData.shift();
+    }
+
+    humChart.update();
+    mqChart.update();
+  }catch(e){
+    console.log("ESP32 no responde");
+  }
+}
+
+function sendCmd(cmd){
+  fetch('/cmd?do='+cmd);
+}
+
+initCharts();
+setInterval(loadData, 2000);
+</script>
+
+</body>
+</html>
